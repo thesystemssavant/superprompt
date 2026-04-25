@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SuperPrompt Generator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f13;
+      --surface: #1a1a24;
+      --surface2: #22222f;
+      --border: #2e2e3e;
+      --accent: #7c5cfc;
+      --accent-hover: #9b7eff;
+      --accent-dim: rgba(124, 92, 252, 0.15);
+      --text: #e8e8f0;
+      --text-muted: #7878a0;
+      --text-dim: #4a4a68;
+      --role-color: #fc5c7d;
+      --context-color: #6a9fd8;
+      --request-color: #56c596;
+      --question-color: #f5a623;
+      --success: #4caf77;
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 48px 24px 80px;
+    }
+
+    /* ── Header ── */
+    header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--accent), #b06aff);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #fff 40%, var(--accent-hover));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .tagline {
+      color: var(--text-muted);
+      font-size: 15px;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+
+    /* ── API Key ── */
+    .key-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .key-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      white-space: nowrap;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .key-input-wrap {
+      flex: 1;
+      position: relative;
+    }
+
+    .key-input-wrap input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 14px;
+      font-family: 'SF Mono', 'Monaco', monospace;
+      padding: 9px 36px 9px 12px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .key-input-wrap input:focus {
+      border-color: var(--accent);
+    }
+
+    .key-input-wrap input::placeholder {
+      color: var(--text-dim);
+    }
+
+    .toggle-key {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-dim);
+      font-size: 14px;
+      padding: 2px;
+    }
+
+    .toggle-key:hover { color: var(--text-muted); }
+
+    .key-status {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-dim);
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+
+    .key-status.valid { background: var(--success); }
+
+    /* ── Input ── */
+    .input-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      display: block;
+    }
+
+    textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 15px;
+      font-family: inherit;
+      line-height: 1.6;
+      padding: 14px 16px;
+      resize: vertical;
+      min-height: 140px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    textarea:focus { border-color: var(--accent); }
+    textarea::placeholder { color: var(--text-dim); }
+
+    .generate-btn {
+      margin-top: 14px;
+      width: 100%;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 15px;
+      font-weight: 600;
+      padding: 13px 24px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s, opacity 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .generate-btn:hover:not(:disabled) { background: var(--accent-hover); }
+    .generate-btn:active:not(:disabled) { transform: scale(0.99); }
+    .generate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Processing ── */
+    .processing-card {
+      display: none;
+    }
+
+    .steps-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .step {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 0.35s ease, transform 0.35s ease;
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .step.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .step.active { color: var(--text); }
+    .step.done { color: var(--text-muted); }
+
+    .step-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 1.5px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 11px;
+      transition: all 0.3s;
+    }
+
+    .step.active .step-icon {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+    }
+
+    .step.done .step-icon {
+      border-color: var(--success);
+      background: rgba(76, 175, 119, 0.12);
+    }
+
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid transparent;
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .checkmark { color: var(--success); font-size: 12px; }
+
+    /* ── Output ── */
+    .output-card {
+      display: none;
+    }
+
+    .output-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .output-title {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .copy-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 500;
+      padding: 7px 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .copy-btn:hover { border-color: var(--accent); color: var(--text); }
+    .copy-btn.copied { border-color: var(--success); color: var(--success); }
+
+    .sections {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .section-block {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+
+    .section-block.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-badge {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    .role-badge   { background: rgba(252, 92, 125, 0.15); color: var(--role-color); }
+    .context-badge{ background: rgba(106, 159, 216, 0.15); color: var(--context-color); }
+    .request-badge{ background: rgba(86, 197, 150, 0.15); color: var(--request-color); }
+    .question-badge{ background: rgba(245, 166, 35, 0.15); color: var(--question-color); }
+
+    .section-body {
+      padding: 14px 16px;
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text);
+      white-space: pre-wrap;
+    }
+
+    .section-body ul {
+      padding-left: 20px;
+    }
+
+    /* ── Error ── */
+    .error-msg {
+      display: none;
+      background: rgba(252, 92, 125, 0.1);
+      border: 1px solid rgba(252, 92, 125, 0.3);
+      color: var(--role-color);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      font-size: 14px;
+      margin-top: 12px;
+    }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      margin-top: 48px;
+      color: var(--text-dim);
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="logo">
+      <div class="logo-icon">⚡</div>
+      <h1>SuperPrompt</h1>
+    </div>
+    <p class="tagline">Turn your messy request into a precision prompt</p>
+  </header>
+
+  <!-- API Key -->
+  <div class="card">
+    <div class="key-row">
+      <span class="key-label">API Key</span>
+      <div class="key-input-wrap">
+        <input type="password" id="apiKey" placeholder="sk-ant-api03-..." autocomplete="off" spellcheck="false">
+        <button class="toggle-key" id="toggleKey" title="Show/hide key">👁</button>
+      </div>
+      <div class="key-status" id="keyStatus"></div>
+    </div>
+  </div>
+
+  <!-- Input -->
+  <div class="card">
+    <label class="input-label" for="userInput">What do you need help with?</label>
+    <textarea id="userInput" placeholder="e.g. I need to write better emails but I always ramble and lose people's attention…&#10;&#10;Or: help me plan my week, I have too much going on and don't know where to start…&#10;&#10;Just describe your messy challenge — the rougher the better." autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
+    <div class="error-msg" id="errorMsg"></div>
+    <button class="generate-btn" id="generateBtn" disabled>
+      <span>Generate SuperPrompt</span>
+      <span>→</span>
+    </button>
+  </div>
+
+  <!-- Processing -->
+  <div class="card processing-card" id="processingCard">
+    <div class="steps-list" id="stepsList"></div>
+  </div>
+
+  <!-- Output -->
+  <div class="card output-card" id="outputCard">
+    <div class="output-header">
+      <span class="output-title">Your SuperPrompt</span>
+      <button class="copy-btn" id="copyBtn">
+        <span>📋</span> <span id="copyLabel">Copy all</span>
+      </button>
+    </div>
+    <div class="sections" id="sections"></div>
+  </div>
+
+</div>
+
+<script>
+  // ── DOM refs ──
+  const apiKeyInput  = document.getElementById('apiKey');
+  const toggleKeyBtn = document.getElementById('toggleKey');
+  const keyStatus    = document.getElementById('keyStatus');
+  const userInput    = document.getElementById('userInput');
+  const generateBtn  = document.getElementById('generateBtn');
+  const errorMsg     = document.getElementById('errorMsg');
+  const processingCard = document.getElementById('processingCard');
+  const stepsList    = document.getElementById('stepsList');
+  const outputCard   = document.getElementById('outputCard');
+  const sectionsEl   = document.getElementById('sections');
+  const copyBtn      = document.getElementById('copyBtn');
+  const copyLabel    = document.getElementById('copyLabel');
+
+  // ── Persist API key ──
+  const STORAGE_KEY = 'sp_api_key';
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) { apiKeyInput.value = saved; updateKeyStatus(); }
+
+  apiKeyInput.addEventListener('input', () => {
+    localStorage.setItem(STORAGE_KEY, apiKeyInput.value.trim());
+    updateKeyStatus();
+  });
+
+  toggleKeyBtn.addEventListener('click', () => {
+    apiKeyInput.type = apiKeyInput.type === 'password' ? 'text' : 'password';
+  });
+
+  function updateKeyStatus() {
+    const key = apiKeyInput.value.trim();
+    keyStatus.className = 'key-status' + (key.startsWith('sk-ant') ? ' valid' : '');
+    generateBtn.disabled = !(key && userInput.value.trim());
+  }
+
+  userInput.addEventListener('input', updateKeyStatus);
+  userInput.addEventListener('change', updateKeyStatus);
+
+  // ── Steps config ──
+  const STEPS = [
+    "Understanding your challenge",
+    "Identifying what makes this tricky",
+    "Researching best practices",
+    "Crafting your SuperPrompt",
+    "Generating personalization questions",
+    "Polishing the final details"
+  ];
+
+  // ── Generate ──
+  generateBtn.addEventListener('click', generate);
+
+  async function generate() {
+    const key   = apiKeyInput.value.trim();
+    const input = userInput.value.trim();
+    if (!key || !input) return;
+
+    // Reset UI
+    hideError();
+    outputCard.style.display = 'none';
+    sectionsEl.innerHTML = '';
+    processingCard.style.display = 'block';
+    stepsList.innerHTML = '';
+    generateBtn.disabled = true;
+    generateBtn.querySelector('span').textContent = 'Generating…';
+
+    // Build step elements
+    const stepEls = STEPS.map((label, i) => {
+      const el = document.createElement('div');
+      el.className = 'step';
+      el.innerHTML = `
+        <div class="step-icon" id="step-icon-${i}">
+          <span class="step-num">${i + 1}</span>
+        </div>
+        <span>${label}…</span>
+      `;
+      stepsList.appendChild(el);
+      return el;
+    });
+
+    // Animate first 3 steps during API call
+    let currentStep = 0;
+
+    async function advanceTo(n) {
+      while (currentStep < n) {
+        if (currentStep > 0) markDone(stepEls[currentStep - 1]);
+        markActive(stepEls[currentStep]);
+        currentStep++;
+        await delay(700);
+      }
+    }
+
+    // Start steps 0–2 while API runs
+    const apiPromise = callClaude(key, input);
+    await advanceTo(3); // gets us to step index 2 active
+
+    // Await API
+    let result;
+    try {
+      result = await apiPromise;
+    } catch (err) {
+      markDone(stepEls[currentStep - 1], true);
+      showError(err.message || 'API call failed. Check your API key and try again.');
+      resetBtn();
+      return;
+    }
+
+    // Animate steps 3–5 after we have the result
+    await advanceTo(6);
+    markDone(stepEls[5]);
+
+    await delay(300);
+
+    // Show output
+    const parsed = parseOutput(result);
+    renderOutput(parsed);
+
+    await delay(100);
+    processingCard.style.display = 'none';
+    resetBtn();
+  }
+
+  function markActive(el) {
+    el.className = 'step visible active';
+    const icon = el.querySelector('.step-icon');
+    icon.innerHTML = '<div class="spinner"></div>';
+  }
+
+  function markDone(el, error = false) {
+    el.className = 'step visible done';
+    const icon = el.querySelector('.step-icon');
+    icon.innerHTML = error ? '✕' : '<span class="checkmark">✓</span>';
+    if (error) {
+      icon.style.borderColor = 'var(--role-color)';
+      icon.style.color = 'var(--role-color)';
+    }
+  }
+
+  function delay(ms) {
+    return new Promise(r => setTimeout(r, ms));
+  }
+
+  function resetBtn() {
+    generateBtn.disabled = false;
+    generateBtn.querySelector('span').textContent = 'Generate SuperPrompt';
+  }
+
+  // ── Claude API call ──
+  async function callClaude(apiKey, userText) {
+    const systemPrompt = `You are a world-class prompt engineer. Your job is to transform messy, unstructured user requests into highly effective "SuperPrompts" that elicit dramatically better AI responses.
+
+A SuperPrompt has exactly four sections. Output them in this exact format, with the section name in ALL CAPS followed by a colon on its own line:
+
+ROLE:
+[Assign a specific expert identity. Name a real methodology, practitioner archetype, or recognized expert role. Include credentials, years of experience, and their core approach. Be specific — not "an expert" but "David Allen, creator of the Getting Things Done (GTD) methodology..."]
+
+CONTEXT:
+[Describe the user's situation richly. Include placeholder variables in [SQUARE BRACKETS] wherever the user would need to fill in personal specifics — e.g. [NUMBER OF TEAM MEMBERS], [YOUR INDUSTRY], [HOURS AVAILABLE PER DAY]. Include constraints, tools they likely use, goals, and relevant background. Make it feel tailored.]
+
+REQUEST:
+[A clear, bulleted list of specific outputs the AI should produce. Use bullet points starting with "•". Be explicit and comprehensive — name the format, depth, and style of each output. Think: what would make this response maximally actionable?]
+
+QUESTION:
+[End with a single sentence that starts "Before proceeding, please ask me any clarifying questions to ensure your advice is tailored to my..." and finishes with the user's specific situation.]
+
+Output ONLY the four sections above — no preamble, no explanation, no commentary. Start immediately with "ROLE:".`;
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-opus-4-5',
+        max_tokens: 1200,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userText }]
+      })
+    });
+
+    if (!resp.ok) {
+      const body = await resp.json().catch(() => ({}));
+      const msg = body?.error?.message || `HTTP ${resp.status}`;
+      if (resp.status === 401) throw new Error('Invalid API key. Check your key and try again.');
+      if (resp.status === 429) throw new Error('Rate limited. Wait a moment and try again.');
+      throw new Error(msg);
+    }
+
+    const data = await resp.json();
+    return data.content?.[0]?.text || '';
+  }
+
+  // ── Parse output ──
+  function parseOutput(text) {
+    const sections = { ROLE: '', CONTEXT: '', REQUEST: '', QUESTION: '' };
+    const keys = Object.keys(sections);
+
+    for (let i = 0; i < keys.length; i++) {
+      const key = keys[i];
+      const next = keys[i + 1];
+      const start = text.indexOf(key + ':');
+      if (start === -1) continue;
+      const contentStart = start + key.length + 1;
+      const end = next ? text.indexOf(next + ':') : text.length;
+      sections[key] = text.slice(contentStart, end === -1 ? text.length : end).trim();
+    }
+
+    return sections;
+  }
+
+  // ── Render output ──
+  const SECTION_META = {
+    ROLE:     { badge: 'role-badge',     label: 'Role' },
+    CONTEXT:  { badge: 'context-badge',  label: 'Context' },
+    REQUEST:  { badge: 'request-badge',  label: 'Request' },
+    QUESTION: { badge: 'question-badge', label: 'Question' }
+  };
+
+  function renderOutput(parsed) {
+    outputCard.style.display = 'block';
+    sectionsEl.innerHTML = '';
+
+    const keys = ['ROLE', 'CONTEXT', 'REQUEST', 'QUESTION'];
+    keys.forEach((key, i) => {
+      const meta = SECTION_META[key];
+      const block = document.createElement('div');
+      block.className = 'section-block';
+      block.innerHTML = `
+        <div class="section-head">
+          <span class="section-badge ${meta.badge}">${meta.label}</span>
+        </div>
+        <div class="section-body">${escapeHtml(parsed[key] || '—')}</div>
+      `;
+      sectionsEl.appendChild(block);
+
+      setTimeout(() => block.classList.add('visible'), i * 120);
+    });
+
+    // Store plain text for copy
+    outputCard.dataset.plain = keys.map(k => `${k}:\n${parsed[k]}`).join('\n\n');
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ── Copy ──
+  copyBtn.addEventListener('click', async () => {
+    const text = outputCard.dataset.plain || '';
+    try {
+      await navigator.clipboard.writeText(text);
+      copyBtn.classList.add('copied');
+      copyLabel.textContent = 'Copied!';
+      setTimeout(() => {
+        copyBtn.classList.remove('copied');
+        copyLabel.textContent = 'Copy all';
+      }, 2000);
+    } catch {
+      // fallback
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+  });
+
+  // ── Error ──
+  function showError(msg) {
+    errorMsg.textContent = msg;
+    errorMsg.style.display = 'block';
+  }
+
+  function hideError() {
+    errorMsg.style.display = 'none';
+    errorMsg.textContent = '';
+  }
+</script>
+</body>
+</html>
