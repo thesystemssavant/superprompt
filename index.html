@@ -874,10 +874,7 @@
     try {
       const resp = await fetch('https://esrqqotarutwznxvzhyl.supabase.co/functions/v1/beehiiv-subscribe', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer sb_publishable_YVi85y7cvIqUB-4dgWx5fA_wtokvnnn'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })
       });
       const result = await resp.json();
