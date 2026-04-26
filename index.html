@@ -802,7 +802,7 @@
     }
 
     const { data, error } = await db
-      .from('users')
+      .from('Users')
       .select('*')
       .eq('username', username)
       .single();
@@ -844,7 +844,7 @@
     }
 
     const { data: existing } = await db
-      .from('users')
+      .from('Users')
       .select('id')
       .eq('username', username)
       .single();
@@ -855,7 +855,7 @@
 
     const hash = await hashPassword(password);
     const { data, error } = await db
-      .from('users')
+      .from('Users')
       .insert({ username, email, password_hash: hash, api_key: apiKey, provider })
       .select()
       .single();
@@ -954,7 +954,7 @@
     if (newPass) update.password_hash = await hashPassword(newPass);
 
     const { error } = await db
-      .from('users')
+      .from('Users')
       .update(update)
       .eq('id', session.id);
 
