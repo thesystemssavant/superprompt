@@ -862,7 +862,7 @@
       .single();
 
     if (error) {
-      return showAuthError(errEl, 'Error: ' + error.message);
+      return showAuthError(errEl, 'Failed to create account. Please try again.');
     }
 
     subscribeToNewsletter(email);
@@ -877,10 +877,8 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })
       });
-      const result = await resp.json();
-      console.log('Newsletter response:', resp.status, result);
     } catch (e) {
-      console.error('Newsletter signup failed:', e);
+      console.warn('Newsletter signup failed:', e);
     }
   }
 
