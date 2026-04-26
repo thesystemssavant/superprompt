@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SuperPrompt Generator</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     @import url('https://fonts.googleapis.com/css?family=Inter:700|Inter:400');
 
@@ -739,33 +740,37 @@
 
 <script>
   // ══════════════════════════════════════
-  // STORAGE HELPERS
+  // SUPABASE CLIENT
   // ══════════════════════════════════════
 
-  function getAccounts() {
-    return JSON.parse(localStorage.getItem('sp_accounts') || '{}');
+  const { createClient } = supabase;
+  const db = createClient(
+    'https://esrqqotarutwznxvzhyl.supabase.co',
+    'sb_publishable_YVi85y7cvIqUB-4dgWx5fA_wtokvnnn'
+  );
+
+  // ══════════════════════════════════════
+  // SESSION HELPERS
+  // ══════════════════════════════════════
+
+  function getSession() {
+    const data = localStorage.getItem('sp_session') || sessionStorage.getItem('sp_session');
+    return data ? JSON.parse(data) : null;
   }
 
-  function saveAccounts(a) {
-    localStorage.setItem('sp_accounts', JSON.stringify(a));
-  }
-
-  function getCurrentUser() {
-    return localStorage.getItem('sp_remember') || sessionStorage.getItem('sp_session');
-  }
-
-  function setSession(username, remember) {
+  function setSession(userData, remember) {
+    const data = JSON.stringify(userData);
     if (remember) {
-      localStorage.setItem('sp_remember', username);
+      localStorage.setItem('sp_session', data);
       sessionStorage.removeItem('sp_session');
     } else {
-      sessionStorage.setItem('sp_session', username);
-      localStorage.removeItem('sp_remember');
+      sessionStorage.setItem('sp_session', data);
+      localStorage.removeItem('sp_session');
     }
   }
 
   function clearSession() {
-    localStorage.removeItem('sp_remember');
+    localStorage.removeItem('sp_session');
     sessionStorage.removeItem('sp_session');
   }
 
@@ -795,16 +800,24 @@
     if (!username || !password) {
       return showAuthError(errEl, 'Please enter your username and password.');
     }
-    const accounts = getAccounts();
-    if (!accounts[username]) {
+
+    const { data, error } = await db
+      .from('users')
+      .select('*')
+      .eq('username', username)
+      .single();
+
+    if (!data) {
       return showAuthError(errEl, 'No account found with that username.');
     }
+
     const hash = await hashPassword(password);
-    if (accounts[username].passwordHash !== hash) {
+    if (data.password_hash !== hash) {
       return showAuthError(errEl, 'Incorrect password.');
     }
-    setSession(username, remember);
-    enterApp(username);
+
+    setSession(data, remember);
+    enterApp(data.username);
   }
 
   async function handleSignup() {
@@ -829,23 +842,54 @@
     if (password.length < 6) {
       return showAuthError(errEl, 'Password must be at least 6 characters.');
     }
-    const accounts = getAccounts();
-    if (accounts[username]) {
+
+    const { data: existing } = await db
+      .from('users')
+      .select('id')
+      .eq('username', username)
+      .single();
+
+    if (existing) {
       return showAuthError(errEl, 'That username is already taken.');
     }
+
     const hash = await hashPassword(password);
-    accounts[username] = { passwordHash: hash, apiKey, email, provider };
-    saveAccounts(accounts);
-    setSession(username, false);
-    enterApp(username);
+    const { data, error } = await db
+      .from('users')
+      .insert({ username, email, password_hash: hash, api_key: apiKey, provider })
+      .select()
+      .single();
+
+    if (error) {
+      return showAuthError(errEl, 'Failed to create account. Please try again.');
+    }
+
+    subscribeToNewsletter(email);
+    setSession(data, false);
+    enterApp(data.username);
+  }
+
+  async function subscribeToNewsletter(email) {
+    try {
+      await fetch('https://esrqqotarutwznxvzhyl.supabase.co/functions/v1/beehiiv-subscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer sb_publishable_YVi85y7cvIqUB-4dgWx5fA_wtokvnnn'
+        },
+        body: JSON.stringify({ email })
+      });
+    } catch (e) {
+      console.warn('Newsletter signup failed:', e);
+    }
   }
 
   function handleLogout() {
     clearSession();
-    document.getElementById('appView').style.display  = 'none';
-    document.getElementById('authView').style.display = '';
-    document.getElementById('userInput').value = '';
-    document.getElementById('outputCard').style.display    = 'none';
+    document.getElementById('appView').style.display   = 'none';
+    document.getElementById('authView').style.display  = '';
+    document.getElementById('userInput').value         = '';
+    document.getElementById('outputCard').style.display     = 'none';
     document.getElementById('processingCard').style.display = 'none';
     document.getElementById('generateBtn').disabled = true;
   }
@@ -858,8 +902,8 @@
   }
 
   function showAuthError(el, msg) {
-    el.textContent    = msg;
-    el.style.display  = 'block';
+    el.textContent   = msg;
+    el.style.display = 'block';
   }
 
   // ══════════════════════════════════════
@@ -867,11 +911,10 @@
   // ══════════════════════════════════════
 
   function openSettings() {
-    const username = getCurrentUser();
-    const accounts = getAccounts();
-    document.getElementById('settingsUsername').value         = username;
-    document.getElementById('settingsProvider').value         = accounts[username]?.provider || 'anthropic';
-    document.getElementById('settingsApiKey').value           = accounts[username]?.apiKey || '';
+    const session = getSession();
+    document.getElementById('settingsUsername').value         = session.username;
+    document.getElementById('settingsProvider').value         = session.provider || 'anthropic';
+    document.getElementById('settingsApiKey').value           = session.api_key || '';
     document.getElementById('settingsPassword').value         = '';
     document.getElementById('settingsError').style.display   = 'none';
     document.getElementById('settingsSuccess').style.display = 'none';
@@ -888,8 +931,9 @@
   }
 
   async function saveSettings() {
-    const username  = getCurrentUser();
+    const session   = getSession();
     const apiKey    = document.getElementById('settingsApiKey').value.trim();
+    const provider  = document.getElementById('settingsProvider').value;
     const newPass   = document.getElementById('settingsPassword').value;
     const errEl     = document.getElementById('settingsError');
     const successEl = document.getElementById('settingsSuccess');
@@ -905,11 +949,24 @@
       errEl.style.display = 'block';
       return;
     }
-    const accounts = getAccounts();
-    accounts[username].apiKey    = apiKey;
-    accounts[username].provider  = document.getElementById('settingsProvider').value;
-    if (newPass) accounts[username].passwordHash = await hashPassword(newPass);
-    saveAccounts(accounts);
+
+    const update = { api_key: apiKey, provider };
+    if (newPass) update.password_hash = await hashPassword(newPass);
+
+    const { error } = await db
+      .from('users')
+      .update(update)
+      .eq('id', session.id);
+
+    if (error) {
+      errEl.textContent = 'Failed to save settings. Please try again.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    session.api_key  = apiKey;
+    session.provider = provider;
+    setSession(session, !!localStorage.getItem('sp_session'));
     successEl.style.display = 'block';
     setTimeout(closeSettings, 1200);
   }
@@ -918,9 +975,9 @@
   // RESTORE SESSION ON LOAD
   // ══════════════════════════════════════
 
-  const existingUser = getCurrentUser();
-  if (existingUser && getAccounts()[existingUser]) {
-    enterApp(existingUser);
+  const existingSession = getSession();
+  if (existingSession) {
+    enterApp(existingSession.username);
   }
 
   // ══════════════════════════════════════
@@ -956,11 +1013,10 @@
   generateBtn.addEventListener('click', generate);
 
   async function generate() {
-    const accounts = getAccounts();
-    const username  = getCurrentUser();
-    const apiKey    = accounts[username]?.apiKey;
-    const provider  = accounts[username]?.provider || 'anthropic';
-    const input     = userInput.value.trim();
+    const session  = getSession();
+    const apiKey   = session?.api_key;
+    const provider = session?.provider || 'anthropic';
+    const input    = userInput.value.trim();
 
     if (!apiKey) {
       showError('No API key found. Add one in ⚙ Settings.');
