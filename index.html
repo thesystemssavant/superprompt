@@ -806,7 +806,7 @@
       .from('Users')
       .select('*')
       .eq('username', username)
-      .single();
+      .maybeSingle();
 
     if (!data) {
       return showAuthError(errEl, 'No account found with that username.');
@@ -848,7 +848,7 @@
       .from('Users')
       .select('id')
       .eq('username', username)
-      .single();
+      .maybeSingle();
 
     if (existing) {
       return showAuthError(errEl, 'That username is already taken.');
