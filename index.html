@@ -861,7 +861,7 @@
       .single();
 
     if (error) {
-      return showAuthError(errEl, 'Failed to create account. Please try again.');
+      return showAuthError(errEl, 'Error: ' + error.message);
     }
 
     subscribeToNewsletter(email);
